@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+################################
+#
+# docker-clean is a script used to removed exited containers, dangling images, & dangling volumes
+#
+# Property of StepsAway
+#
+# Version 0.3
+#
+################################
+
+set -e
+
+usage()
+{
+cat << EOF
+usage: /usr/local/bin/docker-clean [command options]
+
+OPTIONS:
+   -a      Remove both Images & Containers
+   -c      Remove 'Exited' containers
+   -h      This menu
+   -i      Remove dangling images
+   -v      Remove dangling volumes - be careful!
+EOF
+
+exit 1
+}
+
+remove_containers() {
+  printf 'Deleting Exited Containers\n'
+  docker ps -a | grep 'Exited' | awk '{print $1}' | xargs docker rm 2> /dev/null
+}
+
+remove_images() {
+  printf 'Deleting Dangling Images\n'
+  docker rmi -f $(docker images -q --filter 'dangling=true') 2> /dev/null
+}
+
+remove_volumes() {
+  printf 'Deleting Dangling Volumes\n'
+  docker volume rm $(docker volume ls -qf dangling=true) 2> /dev/null
+}
+# START SCRIPT EXECUTION
+
+# get options
+while getopts "achiv" OPTION; do
+  case $OPTION in
+    a) #remove images and containers
+      FULL_CLEAN=1
+      ;;
+    c) #remove containers
+      CONTAINERS=1
+      ;;
+    h) #show help
+      usage
+      ;;
+    i) #remove images
+      IMAGES=1
+      ;;
+    v) #remove images
+      VOLUMES=1
+      ;;
+    \?) #unrecongnized option - show help
+      printf "\nOption -$OPTARG not allowed.\n"
+      usage
+      ;;
+  esac
+done
+
+if [[ $FULL_CLEAN == 1 ]]; then
+  remove_containers
+  remove_images
+fi
+
+if [[ $CONTAINERS == 1 ]]; then
+  remove_containers
+fi
+
+if [[ $IMAGES == 1 ]]; then
+  remove_images
+fi
+
+if [[ $VOLUMES == 1 ]]; then
+  remove_volumes
+fi
+
+if [[ -z $FULL_CLEAN && -z $CONTAINERS && -z $IMAGES && -z $VOLUMES ]]; then
+  usage
+  exit 1
+fi
+
+printf 'Done with Docker clean!\n'

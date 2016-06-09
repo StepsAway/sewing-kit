@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+################################
+#
+# upgrade-swk is a script for updating sewing-kit.
+#
+# Property of StepsAway
+#
+# Version 0.1
+#
+################################
+
+# Set SWKROOT
+SWKROOT="${BASH_SOURCE%/bin/*}"
+
+_current_epoch() {
+  EPOCHSECONDS=$(date +%s)
+  echo $(( $EPOCHSECONDS / 60 / 60 / 24 ))
+}
+
+_update_swk_update() {
+  echo "LAST_EPOCH=$(_current_epoch)" > ~/.swk-update
+}
+
+_upgrade_sewing_kit() {
+  # Use colors, but only if connected to a terminal, and that terminal supports them.
+  if which tput >/dev/null 2>&1; then
+      ncolors=$(tput colors)
+  fi
+
+  if [ -t 1 ] && [ -n "$ncolors" ] && [ "$ncolors" -ge 8 ]; then
+    RED="$(tput setaf 1)"
+    GREEN="$(tput setaf 2)"
+    YELLOW="$(tput setaf 3)"
+    BLUE="$(tput setaf 4)"
+    BOLD="$(tput bold)"
+    NORMAL="$(tput sgr0)"
+  else
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    BOLD=""
+    NORMAL=""
+  fi
+
+  printf "${BLUE}%s${NORMAL}\n" "Updating Sewing Kit"
+  cd "$SWKROOT"
+  if git pull --rebase --stat origin master; then
+    _update_swk_update
+    printf '%s' "$GREEN"
+    printf "${BLUE}%s\n" " Sewing Kit has been updated and/or is at the current version."
+  else
+    printf "${RED}%s${NORMAL}\n" 'There was an error updating.'
+  fi
+}
+
+_check_for_sewing_kit_update(){
+  # number of days before update
+  epoch_target=21
+
+  # Cancel upgrade if git is unavailable on the system
+  whereis git >/dev/null || return 0
+
+  if [ -f ~/.swk-update ]; then
+    . ~/.swk-update
+
+    if [[ -z "$LAST_EPOCH" ]]; then
+      _update_swk_update && return 0;
+    fi
+
+    epoch_diff=$(($(_current_epoch) - $LAST_EPOCH))
+    if [ $epoch_diff -gt $epoch_target ]; then
+      echo "[Sewing-kit] Would you like to check for updates?"
+      select yn in "Yes" "No"; do
+        case $yn in
+          Yes ) _upgrade_sewing_kit; break;;
+          No ) _update_swk_update; break;;
+        esac
+      done
+    fi
+  else
+    # create the swk-update file
+    _update_swk_update
+  fi
+}
+
+# START SCRIPT EXECUTION
+
+# Check to see if the request is an update check request
+if [ $1 == 'check' ]; then
+  _check_for_sewing_kit_update
+else
+  _upgrade_sewing_kit
+fi

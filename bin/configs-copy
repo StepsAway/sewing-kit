@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+################################
+#
+# configs-copy is a script used to copy project configs to the project root
+#
+# Property of StepsAway
+#
+# Version 0.1
+#
+################################
+
+set -e
+
+usage() {
+cat << EOF
+configs-copy takes the project name as an input and copies the projects config files
+to the project. configs-copy requires that CONFIGS and PROJECT_ROOT be set. These
+variables can be set in the ~/.development.conf file, using the command options or ENV.
+DO NOT provide a trailing slash '/' to CONFIGS or PROJECT_ROOT.
+
+The order of precedence is:
+command options
+ENV
+.development.conf
+
+Therefore, if you set CONFIGS as command option, it will ignore what is set in ENV and/or .development.conf.
+
+usage: configs-copy [options project_name]
+OPTIONS:
+   -c      Path to the configs root - likely should be a development folder
+   -h      This menu
+   -i      Path to projects folder
+EOF
+
+exit 1
+}
+
+config_file_check() {
+  if [ ! -f ~/.development.conf ]; then
+    printf "\nWARN: Missing ~/.development.conf file, script will continue\n\n"
+  fi
+}
+
+project_check() {
+  if [ -z $project ]; then
+    printf "\nERROR: Did not provide project name\n\n"
+    usage
+  elif [ ! -d "${configs}/${project}" ]; then
+    printf "\nERROR: Configs folder not found\n\n"
+    usage
+  elif [ ! -d "${project_root}/${project}" ]; then
+    printf "\nERROR: Project folder not found\n\n"
+    usage
+  fi
+}
+
+# START SCRIPT EXECUTION
+
+# get options
+while getopts "c:hp:" OPTION; do
+  case $OPTION in
+    c) #configs path
+      export CONFIGS=$OPTARG
+      ;;
+    h) #show help
+      usage
+      ;;
+    p) #project root
+      export PROJECT_ROOT=$OPTARG
+      ;;
+    \?) #unrecongnized option - show help
+      printf "\nOption -$OPTARG not allowed.\n"
+      usage
+      ;;
+  esac
+done
+shift $(($OPTIND-1))
+project="$1"
+cd ~
+
+while read line; do
+  if [[ "$line" =~ ^[^#]*= ]]; then
+    key=${line%% =*}
+    value=${line#*= }
+
+    # env override
+    if env | grep -q ${line%% =*}; then
+      value=${!key}
+    fi
+
+    case $key in
+      PROJECT_ROOT)
+        project_root=${value}
+        ;;
+      CONFIGS)
+        configs=${value}
+        ;;
+    esac
+  fi
+done < .development.conf
+
+config_file_check
+project_check
+cp -R "${configs}/${project}/" "${project_root}/${project}/"

@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+################################
+#
+# docker-commit is a wrapper script for committing and pushing images to docker hub
+#
+# Property of StepsAway
+#
+# Version 0.2
+#
+################################
+
+set -e
+
+# function to show how to use the script
+usage()
+{
+cat << EOF
+usage: /usr/local/bin/docker-commit [-a author] [-m message] [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
+
+OPTIONS:
+   -a      Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+   -c      Apply specified Dockerfile instructions while committing the image
+   -h      This menu
+   -m      Commit message
+   -p      Pause container during commit
+   -r      Push to Remote hub - Default is true
+   -s      Do not stop container for the image commit
+EOF
+
+exit 1
+}
+
+commit() {
+  printf "Creating new image\n"
+  image=$(eval "docker commit ${options_array[@]} $CONTAINER $REPO:$1")
+  if [[ -z $image ]]; then
+    printf "Failed to create image from $CONTAINER"
+    exit 1
+  else
+    printf "Image $image created!\n"
+  fi
+}
+
+environment_check() {
+  if [[ -z $CONTAINER || -z $REPO_FULL ]]; then
+    printf "\nMissing required augments\n\n"
+    usage
+    exit 1
+  fi
+
+  if [[ -z $AUTHOR || -z $MESSAGE ]]; then
+    printf "\nMissing required options\n\n"
+    usage
+    exit 1
+  fi
+
+  if [[ -z $DOCKER_HOST ]]; then
+    printf "\nDOCKER_HOST env missing - cannot connect to docker.\n\n"
+    exit 1
+  fi
+}
+
+docker_check() {
+  docker version > /dev/null 2>&1
+  if [ $? -ne 0 ]; then
+    printf "\nDocker cannot be contacted, is it running?\n\n"
+    exit 1
+  fi
+
+  repo_exist=$(docker images | awk '{ print $1 }'| grep "^$REPO$" | head -n1)
+  if [[ -z $repo_exist ]]; then
+    printf "\nDocker Image does not exist!\n\n"
+    usage
+    exit 1
+  fi
+
+  container_exist=$(docker ps -a | awk '{ print $1 }' | grep "^$CONTAINER$" | head -n1)
+  if [[ -z $repo_exist ]]; then
+    printf "\nDocker Container does not exist!\n\n"
+    usage
+    exit 1
+  fi
+}
+
+push() {
+  printf "Pushing image $REPO:$1\n"
+  eval "docker push $REPO:$1 >&2"
+}
+
+
+# START SCRIPT EXECUTION
+
+#Remost push is on by default
+REMOTE_PUSH=true
+
+declare -a options_array=()
+# get options
+while getopts "lha:c:m:prs" OPTION; do
+  case $OPTION in
+    a) #
+      AUTHOR=1
+      options_array=("${options_array[@]}" '-a' $(printf "'%s' " "$OPTARG"))
+      ;;
+    c) #
+      options_array=("${options_array[@]}" '-c' $(printf "'%s' " "$OPTARG"))
+      ;;
+    h)
+      usage
+      exit 1
+      ;;
+    m)
+      MESSAGE=1
+      options_array=("${options_array[@]}" '-m' $(printf "'%s' " "$OPTARG"))
+      ;;
+    p)
+      options_array=("${options_array[@]}" '-p' $OPTARG)
+      ;;
+    r)
+      REMOTE_PUSH=false
+      ;;
+    s)
+      DONT_STOP=1
+      ;;
+    \?) #unrecongnized option - show help
+      printf "\nOption -$OPTARG not allowed.\n\n"
+      usage
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+# get arugments
+CONTAINER=$1
+REPO_FULL=$2
+
+# Make sure the script can run correctly
+environment_check
+
+# Create docker tag array
+IFS=':' read -a repo_array <<< "$REPO_FULL"
+REPO="${repo_array[0]}"
+declare -a tags_array=("${repo_array[1]}" "latest")
+
+# Check to make sure docker is running and can work with the requested resources
+docker_check
+
+for t in "${tags_array[@]}"; do
+  if [[ $DONT_STOP == 1 ]]; then
+    commit "$t"
+    if [ $REMOTE_PUSH != false ]; then push "$t"; fi
+   else
+    printf "Stopping container $CONTAINER\n"
+    docker stop $CONTAINER
+    sleep 1
+    commit "$t"
+    printf "Starting container $CONTAINER\n"
+    docker start $CONTAINER
+    if [ $REMOTE_PUSH != false ]; then push "$t"; fi
+  fi
+done
+#EOF

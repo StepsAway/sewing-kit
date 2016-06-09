@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+################################
+#
+# docker-log is a script for showing the commit history of an image
+#
+# Property of StepsAway
+#
+# Version 0.2
+#
+################################
+
+set -e
+
+# function to show how to use the script
+usage() {
+cat << EOF
+usage: /usr/local/bin/docker-log [REPOSITORY]
+example: /usr/local/bin/docker-log stepsaway/main_db
+
+OPTIONS:
+   -h      This menu
+EOF
+
+exit 1
+}
+
+# get options
+while getopts "h" OPTION; do
+  case $OPTION in
+    h) #show help
+      usage
+      exit 1
+      ;;
+    \?) #unrecongnized option - show help
+      printf "Option -$OPTARG not allowed.\n"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z $1 ]]; then
+  usage
+  exit 1
+fi
+
+IFS=':' read -a repo_array <<< "$1"
+
+# Generate log
+printf "$(docker images -a | grep $1 | awk '{ print $3 }' | xargs docker inspect | grep Comment)\n"
+#EOF

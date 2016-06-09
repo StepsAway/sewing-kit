@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+################################
+#
+# docker-list is a script for showing all the versions of a repo on docker hub
+#
+# Property of StepsAway
+#
+# Version 0.2
+#
+################################
+
+set -e
+
+# function to show how to use the script
+usage() {
+cat << EOF
+usage: /usr/local/bin/docker-list [REPOSITORY]
+example: /usr/local/bin/docker-list stepsaway/main_db
+
+OPTIONS:
+   -h      This menu
+EOF
+
+exit 1
+}
+
+# get options
+while getopts "h" OPTION; do
+  case $OPTION in
+    h) #show help
+      usage
+      exit 1
+      ;;
+    \?) #unrecongnized option - show help
+      printf "Option -$OPTARG not allowed.\n"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z $1 ]]; then
+  usage
+  exit 1
+fi
+
+auth_text=$(cat ~/.dockercfg | grep auth)
+IFS=':' read -a auth_hash <<< "$auth_text"
+auth=$(printf "${auth_hash[1]}" | awk '{gsub(/"|,/, "" ); print $0} ')
+
+repo_json=$(curl -s --user $(printf $auth | base64 --decode) https://registry.hub.docker.com/v1/repositories/$1/tags)
+
+echo $repo_json | jq '.'
