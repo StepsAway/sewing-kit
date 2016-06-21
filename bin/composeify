@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
-# Script based on https://github.com/rezzza/dcw
 
 COMPOSEIFY_RELEASE="1.0.0"
 
-TEMP=$(getopt -o f:,s:,p,r:,h,v,d,V -l file:,service:,service-ports,run-options:,help,verbose,dry-run,version -n "composeify" -- "$@")
+TEMP=$(getopt -o f:,h,v,d,V -l file:,help,verbose,dry-run,version -n "composeify" -- "$@")
 
 cleanup() {
-  rm .docker-compose.yml
+  if [ -f .docker-compose.yml ]; then
+    rm .docker-compose.yml
+  fi
 }
 
 usage() {
 cat << EOF
-Usage: composeify [OPTIONS] [CMD]
-  A docker compose wrapper to simplify everyday dev work with containers
+Usage: composeify [OPTIONS]
+  A docker compose wrapper to simplify dev work with containers
     -f, --file             Path to the docker compose file
-    -s, --service          Name of docker compose service to run
-    -p, --service-ports    Run command with the service's ports enabled and mapped
-    -r, --run-options      Extra docker-compose run options (quote them)
     -h, --help             Display this usage description
     -v, --verbose          Display executed docker-compose command
     -d, --dry-run          Display docker-compose command aims to be executed
@@ -24,21 +22,17 @@ Usage: composeify [OPTIONS] [CMD]
   You can also configure following environment variables, either putting then
   into a .composeify file in the current execution path of the command OR by
   exporting them. If you use .composeify file please add it to YOUR global gitignore.
-    COMPOSEIFY_COMPOSE_FILE_PATH
-    COMPOSEIFY_COMPOSE_DEFAULT_RUN_OPTIONS
-    COMPOSEIFY_COMPOSE_SERVICE
+    COMPOSE_FILE_PATH
+    COMPOSE_DEFAULT_RUN_OPTIONS
   Most useful use cases examples:
     Run a simple command
-    $ composeify ls /
+    $ composeify up
     Run a command with some options
-    $ composeify -- ls -lha /
-    Run a command on a service which need to bind ports
-    $ composeify -p passenger start /
+    $ composeify -f /my/compose/file up db
 EOF
 }
 
 # START SCRIPT EXECUTION
-
 if [ "$?" -ne 0 ]; then
   usage && exit 1
 fi
@@ -52,10 +46,7 @@ eval set -- "$TEMP"
 while [ $# -gt 0 ]
 do
   case "$1" in
-    -f|--file)          COMPOSEIFY_COMPOSE_FILE_PATH=$2; shift 2 ;;
-    -s|--service)       COMPOSEIFY_COMPOSE_SERVICE=$2; shift 2 ;;
-    -p|--service-ports) COMPOSEIFY_COMPOSE_RUN_OPTIONS="$COMPOSEIFY_COMPOSE_RUN_OPTIONS --service-ports"; shift ;;
-    -r|--run-options)   COMPOSEIFY_COMPOSE_RUN_OPTIONS="$COMPOSEIFY_COMPOSE_RUN_OPTIONS $2"; shift 2 ;;
+    -f|--file)          COMPOSE_FILE_PATH=$2; shift 2 ;;
     -h|--help)          usage && exit 0 ;;
     -v|--verbose)       COMPOSEIFY_VERBOSE_MODE="yes"; shift ;;
     -d|--dry-run)       COMPOSEIFY_DRYRUN_MODE="yes"; shift ;;
@@ -67,19 +58,18 @@ done
 
 # Make sure to clean up after myself
 trap cleanup EXIT
-if [ -z "$COMPOSEIFY_COMPOSE_SERVICE" ]; then
-  usage && exit 3
-fi
 
-if [ -z "$COMPOSEIFY_COMPOSE_FILE_PATH" ]; then
-  usage && exit 4
+if [[ -z "$COMPOSE_FILE_PATH" || -z "$@" ]]; then
+  usage && exit 2
 else
-  cp "$COMPOSEIFY_COMPOSE_FILE_PATH" .docker-compose.yml
-  COMPOSEIFY_COMPOSE_FILE_PATH=.docker-compose.yml
+  cp "$COMPOSE_FILE_PATH" .docker-compose.yml
+  COMPOSE_FILE_PATH=.docker-compose.yml
 fi
 
-COMPOSEIFY_COMPOSE_RUN_OPTIONS=($COMPOSEIFY_COMPOSE_DEFAULT_RUN_OPTIONS $COMPOSEIFY_COMPOSE_RUN_OPTIONS)
-CMD=(docker-compose --file "$COMPOSEIFY_COMPOSE_FILE_PATH" run "${COMPOSEIFY_COMPOSE_RUN_OPTIONS[@]}" "$COMPOSEIFY_COMPOSE_SERVICE" "$@")
+COMPOSE_RUN_OPTIONS=($COMPOSE_DEFAULT_RUN_OPTIONS $COMPOSE_RUN_OPTIONS)
+
+CMD=(docker-compose --file "$COMPOSE_FILE_PATH" "${COMPOSE_RUN_OPTIONS[@]}" "$@")
+
 if [[ "$COMPOSEIFY_VERBOSE_MODE" = "yes" || "$COMPOSEIFY_DRYRUN_MODE" = "yes" ]]; then
   printf '%s\n' "${CMD[*]}"
 fi
