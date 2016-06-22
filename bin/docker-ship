@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+################################
+#
+# docker-ship is a script mainly used by CI/CD to ship images to docker hub. The logic necessary to correctly ship
+# the images from the CI/CD system is simply unmanageable in the space provided for command line build steps. 
+# Nevertheless, while the main purpose of this script is for CI/CD, end users can also use it for CLI operations. 
+#
+# Property of StepsAway
+#
+# Version 0.1
+#
+################################
+
+set -ex
+
+usage() {
+cat << EOF
+docker-ship takes the following arguments (image name, image tag, vcs branch, image hash) and handles the logic
+necessary for shipping the image(s) to docker hub.
+
+usage: docker-ship [options]
+OPTIONS:
+   -h      This menu
+   -i      Image name
+   -t      Image tag
+   -v      VCS branch name
+EOF
+
+exit 1
+}
+
+# get options
+while getopts "hi:t:v:" OPTION; do
+  case $OPTION in
+    h) usage ;;
+    i) IMAGE=$OPTARG ;;
+    t) TAG=$OPTARG ;;
+    v) VCS=$OPTARG ;;
+    \?) printf "\nOption -$OPTARG not allowed.\n"; usage ;;
+  esac
+done
+
+branch=$(echo $VCS | cut -d '-' -f 1)
+case $branch in
+  dev)
+    docker push $IMAGE:$TAG
+    docker tag $IMAGE:$TAG $IMAGE:edge
+    docker push $IMAGE:edge
+    docker rmi -f $IMAGE:edge
+    ;;
+  feature)
+    docker tag $IMAGE:$TAG $IMAGE:$VCS
+    docker push $IMAGE:$VCS
+    docker rmi -f $IMAGE:$VCS
+    ;;
+  master)
+    release=$(echo $TAG | awk -F "-" '{ print $1 }')
+    docker tag $IMAGE:$TAG $IMAGE:$release
+    docker tag $IMAGE:$TAG $IMAGE:latest
+    docker push $IMAGE:$release
+    docker push $IMAGE:latest
+    docker rmi -f $IMAGE:$release
+    docker rmi -f $IMAGE:latest
+    ;;
+  release|hotfix)
+    release=$(echo $TAG | awk -F "-" '{ print $1 }')
+    docker tag $IMAGE:$TAG $IMAGE:$release
+    docker push $IMAGE:$release
+    docker rmi -f $IMAGE:$release
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

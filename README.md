@@ -38,6 +38,7 @@ sh -c "$(wget https://raw.githubusercontent.com/stepsaway/sewing-kit/master/inst
 * docker-commit - creates and pushes images based on a running container. Run docker-commit -h for help.
 * docker-list - list all images within a docker repo. Run docker-list -h for help.
 * docker-log - list all messages associated with an image. Run docker-log -f for help.
+* docker-ship - takes image name, image tag and vcs branch name and ships the proper images to docker hub. Run ship-image -h for help.
 * upgrade-swk - manually upgrade sewing-kit.
 
 ## License
