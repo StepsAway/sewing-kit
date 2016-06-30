@@ -10,7 +10,7 @@
 ################################
 
 # Set SWKROOT
-SWKROOT="${BASH_SOURCE%/bin/*}"
+SWKROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd)"
 
 _current_epoch() {
   EPOCHSECONDS=$(date +%s)
@@ -70,13 +70,7 @@ _check_for_sewing_kit_update(){
 
     epoch_diff=$(($(_current_epoch) - $LAST_EPOCH))
     if [ $epoch_diff -gt $epoch_target ]; then
-      echo "[Sewing-kit] Would you like to check for updates?"
-      select yn in "Yes" "No"; do
-        case $yn in
-          Yes ) _upgrade_sewing_kit; break;;
-          No ) _update_swk_update; break;;
-        esac
-      done
+      _upgrade_sewing_kit
     fi
   else
     # create the swk-update file
@@ -87,7 +81,7 @@ _check_for_sewing_kit_update(){
 # START SCRIPT EXECUTION
 
 # Check to see if the request is an update check request
-if [ $1 == 'check' ]; then
+if [[ $1 == 'check' ]]; then
   _check_for_sewing_kit_update
 else
   _upgrade_sewing_kit
