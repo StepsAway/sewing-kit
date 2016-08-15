@@ -2,11 +2,27 @@
 
 COMPOSIFY_RELEASE="1.1.0-dev"
 
+getopt -T &> /dev/null
+if [ "$?" -eq 0 ]; then
+cat <<EOF
+You need to install gnu-getopt to run this program.
+If you run this programm on OSX, try:
+    $ brew install gnu-getopt && brew link gnu-getopt --force
+EOF
+  exit 100;
+fi
+
 TEMP=$(getopt -o f:,h,v,d,V -l file:,help,verbose,dry-run,version -n "composify" -- "$@")
 
 cleanup() {
   if [ -f .docker-compose.yml ]; then
     rm .docker-compose.yml
+  fi
+}
+
+set_compose_path(){
+  if [ -z "$COMPOSE_FILE_PATH" ]; then
+    COMPOSE_FILE_PATH="$COMPOSE_CONF/docker-compose.yml"
   fi
 }
 
@@ -19,9 +35,10 @@ Usage: composify [OPTIONS]
     -v, --verbose          Display executed docker-compose command
     -d, --dry-run          Display docker-compose command aims to be executed
     -V, --version          Return composify version
-  You can also configure following environment variables, either putting then
-  into a .composify file in the current execution path of the command OR by
-  exporting them. If you use .composify file please add it to YOUR global gitignore.
+  You can also configure following environment variables, either export them
+  from a .composify file in the current execution path of the command OR by
+  set at runtime. If you use .composify file please add it to YOUR global gitignore.
+    COMPOSE_CONF
     COMPOSE_FILE_PATH
     COMPOSE_DEFAULT_RUN_OPTIONS
   Most useful use cases examples:
@@ -37,9 +54,18 @@ if [ "$?" -ne 0 ]; then
   usage && exit 1
 fi
 
+# Save COMPOSE_CONF if set at runtime
+if [ -n "$COMPOSE_CONF" ]; then
+  compose_conf=$COMPOSE_CONF
+fi
+
 COMPOSIFY_CONFIG_FILE_PATH=$(pwd)/.composify
 if [ -f "$COMPOSIFY_CONFIG_FILE_PATH" ]; then
   source "$COMPOSIFY_CONFIG_FILE_PATH"
+fi
+
+if [ -n "$compose_conf" ];then
+  COMPOSE_CONF="$compose_conf"
 fi
 
 eval set -- "$TEMP"
@@ -59,9 +85,10 @@ done
 # Make sure to clean up after myself
 trap cleanup EXIT
 
-if [[ -z "$COMPOSE_FILE_PATH" || -z "$@" ]]; then
+if [[ -z "$COMPOSE_CONF" || -z "$@" ]]; then
   usage && exit 2
 else
+  set_compose_path
   cp "$COMPOSE_FILE_PATH" .docker-compose.yml
   COMPOSE_FILE_PATH=.docker-compose.yml
 fi
