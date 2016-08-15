@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-COMPOSIFY_RELEASE="1.1.0"
+COMPOSIFY_RELEASE="1.1.1"
 
 getopt -T &> /dev/null
 if [ "$?" -eq 0 ]; then
@@ -102,5 +102,6 @@ if [[ "$COMPOSIFY_VERBOSE_MODE" = "yes" || "$COMPOSIFY_DRYRUN_MODE" = "yes" ]]; 
 fi
 
 if [ "$COMPOSIFY_DRYRUN_MODE" != "yes" ]; then
+  export COMPOSE_CONF=$COMPOSE_CONF
   "${CMD[@]}"
 fi
