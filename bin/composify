@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-COMPOSIFY_RELEASE="1.1.0-dev"
+COMPOSIFY_RELEASE="1.1.0"
 
 getopt -T &> /dev/null
 if [ "$?" -eq 0 ]; then
