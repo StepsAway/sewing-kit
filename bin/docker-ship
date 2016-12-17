@@ -2,12 +2,12 @@
 ################################
 #
 # docker-ship is a script mainly used by CI/CD to ship images to docker hub. The logic necessary to correctly ship
-# the images from the CI/CD system is simply unmanageable in the space provided for command line build steps. 
-# Nevertheless, while the main purpose of this script is for CI/CD, end users can also use it for CLI operations. 
+# the images from the CI/CD system is simply unmanageable in the space provided for command line build steps.
+# Nevertheless, while the main purpose of this script is for CI/CD, end users can also use it for CLI operations.
 #
 # Property of StepsAway
 #
-# Version 0.1
+# Version 0.2
 #
 ################################
 
@@ -20,6 +20,7 @@ necessary for shipping the image(s) to docker hub.
 
 usage: docker-ship [options]
 OPTIONS:
+   -g      Push image name to git
    -h      This menu
    -i      Image name
    -t      Image tag
@@ -30,8 +31,9 @@ exit 1
 }
 
 # get options
-while getopts "hi:t:v:" OPTION; do
+while getopts "ghi:t:v:" OPTION; do
   case $OPTION in
+    g) GIT=1 ;;
     h) usage ;;
     i) IMAGE=$OPTARG ;;
     t) TAG=$OPTARG ;;
@@ -47,11 +49,14 @@ case $branch in
     docker tag $IMAGE:$TAG $IMAGE:edge
     docker push $IMAGE:edge
     docker rmi -f $IMAGE:edge
+    git push origin $TAG if $GIT = true
+    if [ ! -z $GIT ]; then git checkout -b $TAG; git push origin $TAG; fi
     ;;
   feature)
     docker tag $IMAGE:$TAG $IMAGE:$VCS
     docker push $IMAGE:$VCS
     docker rmi -f $IMAGE:$VCS
+    if [ ! -z $GIT ]; then git checkout -b $VCS; git push origin $VCS; fi
     ;;
   master)
     release=$(echo $TAG | awk -F "-" '{ print $1 }')
@@ -61,12 +66,14 @@ case $branch in
     docker push $IMAGE:latest
     docker rmi -f $IMAGE:$release
     docker rmi -f $IMAGE:latest
+    if [ ! -z $GIT ]; then git checkout -b $release; git push origin $release; fi
     ;;
   release|hotfix)
     release=$(echo $TAG | awk -F "-" '{ print $1 }')
     docker tag $IMAGE:$TAG $IMAGE:$release
     docker push $IMAGE:$release
     docker rmi -f $IMAGE:$release
+    if [ ! -z $GIT ]; then git checkout -b $release; git push origin $release; fi
     ;;
   *)
     usage
