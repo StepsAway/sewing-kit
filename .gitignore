@@ -1,0 +1,3 @@
+# Ignore auto generated rancher wrapper scripts
+rancher-*
+!rancher-config

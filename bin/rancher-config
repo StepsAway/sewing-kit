@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+################################
+#
+# rancher-config is a script that generates a wrapper script for the rancher cli that is specific to a rancher server.
+# Therefore, you could create wrappers for each environment. For example, rancher-prod, rancher-stage,
+# or rancher-dev. The main idea is to not pollute the namespace with ENV vars and provided the admin the ability to
+# quickly jump between rancher servers without having to update their terminals environment.
+#
+# Property of StepsAway
+#
+# Version 0.1
+#
+################################
+
+set -e
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd)"
+
+# Gather input
+echo -n "URL: "
+read url
+
+echo -n "Access Key: "
+read key
+
+echo -n "Secret Key: "
+unset secret;
+while IFS= read -r -s -n1 pass; do
+  if [[ -z $pass ]]; then
+     echo
+     break
+  else
+     echo -n '*'
+     secret+=$pass
+  fi
+done
+
+echo -n "Wrapper sufix (rancher-): "
+read sufix
+
+
+echo "#!/usr/bin/env bash" > $ROOT/bin/rancher-$sufix
+echo "rancher --url $url --access-key $key --secret-key $secret \"\$@\"" >> $ROOT/bin/rancher-$sufix
+chmod 755 $ROOT/bin/rancher-$sufix
