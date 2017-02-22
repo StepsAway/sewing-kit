@@ -54,10 +54,6 @@ environment_check() {
     exit 1
   fi
 
-  if [[ -z $DOCKER_HOST ]]; then
-    printf "\nDOCKER_HOST env missing - cannot connect to docker.\n\n"
-    exit 1
-  fi
 }
 
 docker_check() {
