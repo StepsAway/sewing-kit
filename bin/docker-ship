@@ -7,11 +7,18 @@
 #
 # Property of StepsAway
 #
-# Version 0.2
+# Version 0.3
 #
 ################################
 
 set -ex
+
+pushimage() {
+  git checkout -b $1
+  echo " `date`" >> README.md
+  git commit -a -m "New image at `date`"
+  git push -f origin $1
+}
 
 usage() {
 cat << EOF
@@ -50,13 +57,13 @@ case $branch in
     docker push $IMAGE:edge
     docker rmi -f $IMAGE:edge
     git push origin $TAG if $GIT = true
-    if [ ! -z $GIT ]; then git checkout -b $TAG; git push origin $TAG; fi
+    if [ ! -z $GIT ]; then pushimage $TAG; fi
     ;;
   feature|hotfix)
     docker tag $IMAGE:$TAG $IMAGE:$VCS
     docker push $IMAGE:$VCS
     docker rmi -f $IMAGE:$VCS
-    if [ ! -z $GIT ]; then git checkout -b $VCS; git push origin $VCS; fi
+    if [ ! -z $GIT ]; then pushimage $VCS; fi
     ;;
   master)
     release=$(echo $TAG | awk -F "-" '{ print $1 }')
@@ -66,14 +73,14 @@ case $branch in
     docker push $IMAGE:latest
     docker rmi -f $IMAGE:$release
     docker rmi -f $IMAGE:latest
-    if [ ! -z $GIT ]; then git checkout -b $release; git push origin $release; fi
+    if [ ! -z $GIT ]; then pushimage $release; fi
     ;;
   release)
     release=$(echo $TAG | awk -F "-" '{ print $1 }')
     docker tag $IMAGE:$TAG $IMAGE:$release
     docker push $IMAGE:$release
     docker rmi -f $IMAGE:$release
-    if [ ! -z $GIT ]; then git checkout -b $release; git push origin $release; fi
+    if [ ! -z $GIT ]; then pushimage $release; fi
     ;;
   *)
     usage
